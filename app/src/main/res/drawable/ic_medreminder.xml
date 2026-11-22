@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App 圖示：青綠膠囊（左深右淺）+ 笑臉，斜放在淡青色圓底上 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <!-- 圓底 -->
+    <path android:fillColor="#E7F4F3" android:pathData="M48,0a48,48 0,1 1,0 96a48,48 0,1 1,0 -96z" />
+    <group android:rotation="-35" android:pivotX="48" android:pivotY="48">
+        <!-- 右半（淺） -->
+        <path android:fillColor="#BFE5E3" android:pathData="M48,32h16a16,16 0,0 1,0 32h-16z" />
+        <!-- 左半（深） -->
+        <path android:fillColor="#3A9D9B" android:pathData="M48,32h-16a16,16 0,0 0,0 32h16z" />
+        <!-- 亮光 -->
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.85" android:pathData="M27,39h8a2,2 0,0 1,0 4h-8a2,2 0,0 1,0 -4z" />
+        <!-- 笑臉（在右半） -->
+        <path android:fillColor="#263A40" android:pathData="M54,42.5a2,2.5 0,1 1,0 5a2,2.5 0,1 1,0 -5z" />
+        <path android:fillColor="#263A40" android:pathData="M63,42.5a2,2.5 0,1 1,0 5a2,2.5 0,1 1,0 -5z" />
+        <path android:strokeColor="#263A40" android:strokeWidth="1.8" android:strokeLineCap="round"
+            android:fillColor="#00000000" android:pathData="M55.5,51.5q3,2.5 6,0" />
+    </group>
+</vector>

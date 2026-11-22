@@ -1,0 +1,18 @@
+rules_version = '2';
+// 原型階段的規則：登入（含凱比的匿名登入）才能讀寫長者資料。
+// 正式上線前要改成：照服員帳號只能讀寫自己站點的長者、凱比只能寫自己綁定的長者。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 每台凱比一筆：後台在這裡指定這台凱比給哪位長者（elderId）
+    match /robots/{deviceId} {
+      allow read, write: if request.auth != null;
+    }
+    match /elders/{elderId} {
+      allow read, write: if request.auth != null;
+      match /events/{eventId} {
+        allow read, create: if request.auth != null;
+        allow update, delete: if false;   // 事件紀錄只能新增，不能改
+      }
+    }
+  }
+}

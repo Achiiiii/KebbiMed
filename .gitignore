@@ -1,0 +1,15 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+# Firebase 設定檔含專案金鑰，不要上傳到公開的 GitHub
+app/google-services.json
+# Nuwa SDK 為專有授權，請自行從 https://dss.nuwarobotics.com/ 下載後放入 app/libs/
+app/libs/*.aar
+app/libs/*.jar
