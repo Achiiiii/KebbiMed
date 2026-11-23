@@ -1,0 +1,8 @@
+{ "events": [
+  { "eventId": "6b1e2f7a-0c1d-4e5f-8a9b-0c1d2e3f4a5b", "occurrenceId": "occ_20261122_AFTER_BREAKFAST_eld_0001", "type": "taken",
+    "occurredAt": "2026-11-22T08:03:12+08:00", "source": "touch",
+    "detail": { "screen": "remind" } },
+  { "eventId": "7c2f3a8b-1d2e-4f60-9b0c-1d2e3f4a5b6c", "occurrenceId": "occ_20261122_AFTER_LUNCH_eld_0001", "type": "snoozed",
+    "occurredAt": "2026-11-22T12:32:00+08:00", "source": "notification",
+    "detail": { "snoozeUntil": "2026-11-22T12:42:00+08:00" } }
+] }

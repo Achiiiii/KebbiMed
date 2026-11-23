@@ -1,0 +1,2 @@
+{ "type": "about:blank", "title": "Invalid routine", "status": 422, "code": "INVALID_ROUTINE",
+  "detail": "午餐要比早餐晚至少 2 小時。", "traceId": "tr_0001" }

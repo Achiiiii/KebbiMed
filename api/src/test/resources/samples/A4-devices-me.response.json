@@ -1,0 +1,6 @@
+{ "deviceId": "dev_7f3a91", "assigned": true,
+  "elder": { "elderId": "eld_0001", "displayName": "測試長者", "stationName": "測試站" },
+  "timezone": "Asia/Taipei",
+  "latestScheduleVersion": 12,
+  "rewards": { "flowers": 5, "todayComplete": false },
+  "serverTime": "2026-11-22T13:50:00+08:00" }

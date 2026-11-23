@@ -1,0 +1,21 @@
+{
+  "version": 13, "etag": "\"v13\"", "publishedAt": "2026-11-22T10:00:00+08:00",
+  "effectiveFrom": "2026-11-22T10:00:00+08:00", "timezone": "Asia/Taipei",
+  "changeSummary": "站點照服員幫您更新了藥。新增：利尿劑。",
+  "changeSource": "caregiver",
+  "routine": { "breakfast": "08:00", "lunch": "12:30", "dinner": "18:30", "sleep": "22:00" },
+  "medications": [
+    { "medicationId": "med_0001", "catalogId": "M13", "displayName": "利尿劑", "genericName": "Furosemide",
+      "brandName": "Lasix 來適泄", "dose": { "amount": 1, "unit": "顆", "text": "1 顆" },
+      "route": "oral", "instructions": "飯後", "slots": ["AFTER_BREAKFAST", "AFTER_DINNER"],
+      "customTimes": [], "weeklyOn": null, "endDate": null, "imageUrl": null }
+  ],
+  "occurrences": [
+    { "occurrenceId": "occ_20261122_AFTER_DINNER_eld_0001", "date": "2026-11-22",
+      "slot": "AFTER_DINNER", "slotLabel": "晚餐後",
+      "scheduledAt": "2026-11-22T18:30:00+08:00",
+      "lateDeadline": "2026-11-23T01:15:00+08:00",
+      "items": [ { "medicationId": "med_0001", "doseText": "1 顆", "catalogId": "M13", "displayName": "利尿劑" } ] }
+  ],
+  "serverTime": "2026-11-22T10:00:01+08:00"
+}

@@ -1,0 +1,4 @@
+{ "requestId": "1a2b3c4d-0000-4000-8000-000000000001", "type": "add_medication",
+  "catalogId": "M13", "identifiedBy": "qr",
+  "prescription": { "dosePerTime": 1.0, "timesPerDay": 2, "slots": ["MORNING", "EVENING"], "mealRelation": "AFTER", "durationDays": 7, "method": "ORAL" },
+  "createdAt": "2026-11-22T14:00:00+08:00" }

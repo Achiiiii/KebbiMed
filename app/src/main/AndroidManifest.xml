@@ -2,29 +2,32 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 掃藥袋 QR Code -->
+    <!-- 掃藥袋：凱比只有一顆前鏡頭，不要求一定有後鏡頭 -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <!-- 後台同步 -->
+    <!-- 連後端 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- 準時提醒：精準鬧鐘、開機後重排、跳出全螢幕提醒 -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <!-- 準時提醒：精準鬧鐘（不上架 Play，USE_EXACT_ALARM 系統會自動允許，D35）、開機後重排、通知 -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Nuwa SDK 自帶這兩個系統權限，一般 App 用不到也拿不到，合併時移除，免得打包時被檢查擋下 -->
-    <uses-permission android:name="android.permission.INSTALL_PACKAGES" tools:node="remove" />
-    <uses-permission android:name="android.permission.DELETE_PACKAGES" tools:node="remove" />
+    <uses-permission android:name="android.permission.INSTALL_PACKAGES" tools:node="remove" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.DELETE_PACKAGES" tools:node="remove" tools:ignore="ProtectedPermissions" />
 
-    <!-- Android 11 以上要宣告才找得到文字轉語音引擎 -->
     <queries>
+        <!-- 模擬器測試用的 Android 語音 -->
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
+        <!-- 凱比原廠服務（換機器也要綁得上） -->
+        <package android:name="com.nuwarobotics.service" />
+        <package android:name="com.nuwarobotics.app.facepresenter" />
+        <package android:name="com.nuwarobotics.service.systempet" />
     </queries>
 
     <application
@@ -49,10 +52,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 大螢幕的 Android 15 會對固定方向的 App 套用相機相容處理；App 自己處理橫向相機，所以退出（QR 移植文件 4.3） -->
+            <property android:name="android.window.PROPERTY_CAMERA_COMPAT_ALLOW_FORCE_ROTATION" android:value="false" />
+            <property android:name="android.window.PROPERTY_CAMERA_COMPAT_ALLOW_REFRESH" android:value="false" />
         </activity>
 
         <receiver android:name=".engine.AlarmReceiver" android:exported="false" />
-        <receiver android:name=".engine.BootReceiver" android:exported="true">
+        <receiver android:name=".engine.NotificationActionReceiver" android:exported="false" />
+        <!-- CR-27：不 exported。系統廣播（開機、更新、改時間）照樣收得到 -->
+        <receiver android:name=".engine.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />

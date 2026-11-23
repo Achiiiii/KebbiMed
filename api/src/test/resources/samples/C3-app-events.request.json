@@ -1,0 +1,2 @@
+{ "events": [ { "eventId": "8d3a4b9c-2e3f-4a71-8c1d-2e3f4a5b6c7d", "type": "notification.opened", "occurredAt": "2026-11-22T08:05:00+08:00",
+  "detail": { "occurrenceId": "occ_20261122_AFTER_BREAKFAST_eld_0001" } } ] }

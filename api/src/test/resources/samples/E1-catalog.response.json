@@ -1,0 +1,8 @@
+{ "version": 3, "etag": "\"c3\"", "categories": ["心衰竭"],
+  "items": [ { "catalogId": "M13", "displayName": "利尿劑", "genericName": "Furosemide",
+               "brandName": "Lasix 來適泄", "category": "心衰竭",
+               "aliases": ["Furosemide", "Lasix", "來適泄"],
+               "defaultDose": { "amount": 1, "unit": "顆", "text": "1 顆" },
+               "defaultSlots": ["AFTER_BREAKFAST", "AFTER_DINNER"],
+               "mealRelation": "AFTER", "weeklyOn": null } ],
+  "serverTime": "2026-11-22T08:00:00+08:00" }

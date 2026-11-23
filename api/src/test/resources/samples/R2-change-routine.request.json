@@ -1,0 +1,2 @@
+{ "requestId": "1a2b3c4d-0000-4000-8000-000000000003", "type": "change_routine",
+  "routine": { "breakfast": "07:30", "lunch": "12:00", "dinner": "18:00", "sleep": "21:30" }, "createdAt": "2026-11-22T14:10:00+08:00" }

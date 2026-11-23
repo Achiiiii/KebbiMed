@@ -1,0 +1,2 @@
+{ "requestId": "1a2b3c4d-0000-4000-8000-000000000002", "type": "remove_medication", "medicationId": "med_0001",
+  "reason": "doctor_said_stop", "createdAt": "2026-11-22T14:05:00+08:00" }

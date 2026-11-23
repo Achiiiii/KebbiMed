@@ -29,6 +29,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import kotlinx.coroutines.delay
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import tw.kebbi.medreminder.data.AppForeground
 import tw.kebbi.medreminder.robot.Robot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -162,14 +165,18 @@ fun KScreen(
     onExit: (() -> Unit)? = null,
     body: @Composable BoxScope.() -> Unit,
 ) {
-    // 每換一頁（上方文字不同），機器人就把上方文字和可以按的按鈕唸出來
+    // 每換一頁（上方文字不同），機器人就把上方文字和可以按的按鈕唸出來。
+    // 只有 App 在前景時才說：在背景時由提醒引擎說（CR-40），畫面不說，免得講兩次或打斷引擎的話。
+    // 從背景回到前景時（例如點通知打開 App），重念一次目前的畫面（第 2.6 節）。
     val opts = remember(say) { ScreenOptions() }
-    LaunchedEffect(say) {
+    val foreground by AppForeground.state.collectAsState()
+    LaunchedEffect(say, foreground) {
+        if (!foreground) return@LaunchedEffect
         Robot.hush()       // 換頁了，上一頁還沒講完的話先停
         delay(350)         // 等按鈕都畫出來
         Robot.sayScreen(say, opts.labels.toList())
     }
-    DisposableEffect(say) { onDispose { Robot.hush() } }
+    DisposableEffect(say) { onDispose { if (AppForeground.isForeground) Robot.hush() } }
     CompositionLocalProvider(LocalScreenOptions provides opts) {
         Column(Modifier.fillMaxSize()) {
             SayBar(say, onGear, onExit)
@@ -219,17 +226,19 @@ fun TimeRow(time: String, text: String, chip: (@Composable () -> Unit)? = null, 
 
 /** 網格選擇按鈕（分類、藥名）。 */
 @Composable
-fun GridButton(title: String, sub: String?, ghost: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+fun GridButton(title: String, sub: String?, ghost: Boolean = false, enabled: Boolean = true, marked: Boolean = false, onClick: () -> Unit) {
     RegisterOption(title, enabled && !ghost)
     val shape = RoundedCornerShape(24.dp)
+    // marked：加藥精靈建議的答案，實心標出來
     Column(
-        Modifier.width(270.dp).height(104.dp).clip(shape).background(Color.White)
+        Modifier.width(270.dp).height(104.dp).clip(shape).background(if (marked) K.teal else Color.White)
             .border(4.dp, if (ghost || !enabled) Color(0xFFC9D6D5) else K.teal, shape)
             .clickable(enabled = enabled, onClick = { Robot.hush(); onClick() }).padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
-        Text(title, color = if (ghost || !enabled) K.ink2 else K.teal, fontSize = if (title.length > 14) 24.sp else 30.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1)
-        if (sub != null) Text(sub, color = K.ink2, fontSize = 20.sp, textAlign = TextAlign.Center, maxLines = 1)
+        val fg = when { marked -> Color.White; ghost || !enabled -> K.ink2; else -> K.teal }
+        Text(title, color = fg, fontSize = if (title.length > 14) 24.sp else 30.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1)
+        if (sub != null) Text(sub, color = if (marked) Color.White else K.ink2, fontSize = 20.sp, textAlign = TextAlign.Center, maxLines = 1)
     }
 }
 

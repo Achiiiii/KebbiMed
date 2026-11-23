@@ -1,120 +1,137 @@
 # 用藥提醒 App（KebbiMed）
 
-照 Figma「凱比介面｜用藥提醒」做的 Android App，裝在凱比（Nuwa Kebbi）上。
+裝在凱比（Nuwa Kebbi **AIR-H300**）上的 Android App，提醒長者按時吃藥。畫面照 Figma「凱比介面｜用藥提醒」。
 
-- **站點設定**（照服員）：綁定長者 → 作息 → 一包一包掃藥袋 QR Code，或用問的選藥 → 設定完成
-- **居家提醒**（長者）：依真實時間提醒吃藥 → 按「吃了」花就長大 → 全部吃完開花；沒吃會再提醒、判定漏吃、通知照服員
-- **設定模式**（右上角「設定」）：調整時間、刪除藥品（要先問醫師）、新增一包藥
-- **後台同步**：Firebase Firestore；照服員在後台改藥，凱比會自動更新並告訴長者
+- **居家提醒**（長者）：時間到，凱比說話並顯示這包藥 → 按「吃了」花就長大 → 全部吃完開花。沒吃會再提醒一次；30 分鐘還沒吃記成「逾時未服」，在晚吃期限前還能補吃（記成「晚吃」），過了期限就是「漏服」。
+- **設定**（右上角齒輪）：新增藥品（拍藥袋）、刪除藥品、吃藥時間（作息）。
+  - **App 不會自己改提醒。** 這些操作都是送「變更申請」給後端，後端套用後，凱比再拉回新的排程。
+- **後端**：排程由後端提供，凱比回報服藥事件。逾時、漏服、凱比離線的 LINE 通知由後端發，App 不直接發。
+  - 後端由第三方依 `:api` 模組實作，還沒完成。在那之前 App 用內建的**假後端**。
+
+| 文件 | 內容 |
+|---|---|
+| `docs/後端接口文件.md` | 給後端工程師：資料庫、13 支 API、計算規則、LINE 通知 |
+| `docs/工程師交接.md` | 給接手的 App 工程師：架構、凱比實測到的限制、adb 指令、還沒做的 |
 
 ---
 
-## 一、第一次打包（大約 1 小時，多半在等下載）
+## 一、第一次建置
 
-### 1. 安裝 Android Studio
-到 https://developer.android.com/studio 下載安裝，一路按「Next」用預設值就好。第一次開啟會下載 Android SDK。
+### 1. 準備
+- **Android Studio**：到 https://developer.android.com/studio 下載安裝，用預設值就好。第一次開啟會下載 Android SDK。
+- **JDK 17 或 21**。Android Studio 內建的 JDK 就可以；在命令列建置時，`JAVA_HOME` 要指到 JDK 17 或 21（**Java 24 編譯不過**）。
+- **Nuwa SDK**（凱比原廠 SDK）：授權不允許放進公開 repo，要自己下載。
+  1. 到 https://dss.nuwarobotics.com/ 註冊登入，下載 Nuwa SDK 的 `.aar`（目前用的是 2.1.0.10）。
+  2. 放進 `app/libs/`。
+  - **沒有放 aar 會編譯失敗。**
 
 ### 2. 打開專案
-1. 解壓縮 `KebbiMed.zip`。
+1. `git clone https://github.com/Achiiiii/KebbiMed.git`
 2. Android Studio → **Open** → 選 `KebbiMed` 資料夾（裡面有 `settings.gradle.kts` 的那層）。
-3. 右下角會跑「Gradle sync」，第一次要下載很多東西，等它跑完。
-   - 如果跳出「升級 Android Gradle Plugin」的提示，可以先按「Don't remind me」，不用升級。
-   - 如果出現紅字錯誤，**把整段錯誤訊息複製給 Claude**。
+3. 等右下角的「Gradle sync」跑完。跳出「升級 Android Gradle Plugin」的提示時，按「Don't remind me」，不要升級（版本集中在 `gradle/libs.versions.toml`）。
 
-### 3. 先在電腦上的模擬器試跑
-1. 上方工具列 **Device Manager** → **Create Virtual Device** → 選 **Tablet** 類的（例如 Pixel Tablet）→ 系統映像選最新的 → Finish。
-2. 按上方綠色 ▶（Run）。App 會在模擬器打開，畫面是橫向。
-3. App 打開會先播啟動動畫，接著進入站點設定（作息 → 加藥）。不用輸入長者資料，預設是德高站林阿公（KB-0013）。
+命令列：
+
+```
+./gradlew :app:assembleDebug                  # 打包 debug 版
+./gradlew :api:test :app:testDebugUnitTest    # 單元測試
+./gradlew :app:lintDebug                      # lint
+```
+
+### 3. 在模擬器試跑
+1. **Device Manager** → **Create Virtual Device** → 選 **Tablet**（例如 Pixel Tablet）→ 系統映像選 API 35、x86_64。
+2. 按 ▶（Run）。畫面是橫向。
+3. 依序看到：啟動動畫 →「用藥提醒」→ **配對畫面**（顯示配對碼和 QR Code），因為這台還沒綁定長者。
+4. debug 版按「模擬後台綁定（測試）」，綁定假後端的「測試長者」，進入首頁。
+5. 藥單一開始是空的：右上角齒輪 →「照服員設定 ›」→「假後端」→「後台加藥」或「2 分鐘後的測試提醒」。
+
+- 模擬器上用 Android 內建語音說話；凱比上用 Nuwa SDK。
+- 模擬器沒有藥袋可以拍，掃描畫面用「測試圖片」（見第三節）。
 
 ### 4. 裝到凱比上
-1. 在凱比上打開 **開發者選項** 和 **USB 偵錯**：
-   一般 Android 是「設定 → 關於 → 連點版本號碼 7 次」，再到「開發者選項」打開「USB 偵錯」。
-   凱比的系統設定入口依機型、韌體不同，**如果找不到，請洽 Nuwa（女媧創造）協助開啟 USB 偵錯或安裝第三方 App 的權限**。
+1. 在凱比上打開**開發者選項**和 **USB 偵錯**。一般是「設定 → 關於 → 連點版本號碼 7 次」，再到「開發者選項」打開「USB 偵錯」。找不到入口的話，請洽 Nuwa（女媧創造）協助。
 2. 用 USB 線接電腦和凱比，凱比上按「允許 USB 偵錯」。
-3. Android Studio 上方裝置選單會出現凱比，按 ▶ 就會裝上去並打開。
-4. 要給別人裝：選單 **Build → Build App Bundle(s) / APK(s) → Build APK(s)**，產生的 APK 在 `app/build/outputs/apk/debug/`。
+3. 在 Android Studio 選凱比、按 ▶；或用命令列：
 
-> 還沒做第二步的 Firebase 也能打包和使用，只是不會同步到後台。
+   ```
+   adb install -r app/build/outputs/apk/debug/app-debug.apk
+   adb shell am start -n tw.kebbi.medreminder/.MainActivity
+   ```
 
----
+4. 第一次打開時允許通知，再完成配對（見上面第 3 步）。
 
-## 二、接上後台（Firebase，免費方案就夠）
-
-1. 到 https://console.firebase.google.com → **新增專案**（名稱例如 `kebbi-med`）。
-2. 專案首頁 → 新增應用程式 → **Android**：
-   - Android 套件名稱填 **`tw.kebbi.medreminder`**（一定要一樣）
-   - 下載 **`google-services.json`**，放到專案的 **`app/`** 資料夾裡（和 `app/build.gradle.kts` 同一層）
-   - 後面的步驟（加 SDK）可以直接跳過，專案已經寫好了
-3. 左側 **Build → Firestore Database → 建立資料庫**：地點選 `asia-east1（台灣）`，模式選「正式版」。
-4. Firestore 的 **規則** 分頁：把 `firebase/firestore.rules` 的內容整個貼上 → 發布。
-5. 左側 **Build → Authentication → 開始使用 → Sign-in method → 匿名（Anonymous）→ 啟用**。
-6. 回 Android Studio：選單 **File → Sync Project with Gradle Files**，再按 ▶ 重新安裝。
-
-裝好後，到 Firestore 的「資料」分頁會看到 `elders/KB-0013`，吃藥、漏吃、改藥都會記在 `events` 裡。
-
-### 後台資料長這樣（給後台網頁、LINE 拉娃 APP 讀）
-```
-robots/{裝置編號}                       ← 每台凱比第一次開機會自動建立
-  elderId: "KB-0013"  elderName: "林阿公"  stationId: "德高"  model: "..."  lastSeen: (時間)
-  → 照服員在後台改 elderId，凱比就會換成照顧那位長者（裝置編號在 凱比「設定 → 照服員設定」看得到）
-
-elders/KB-0013
-  name: "林阿公"   stationId: "德高"
-  meds: ["M13","M18","M07"]
-  schedule: { breakfast:"08:00", lunch:"12:30", dinner:"18:30", sleep:"22:00" }
-  today: { date:"2026-11-19", taken:1, total:3,
-           slots: { "早餐後": {time:"08:00", status:"taken", takenAt:"08:03:12", meds:[...]}, ... } }
-  flowers: 5
-  updatedBy: "kebbi" | "caregiver"     ← 照服員在後台改藥時設成 "caregiver"，並更新 configUpdatedAt
-  configUpdatedAt: 1763532000000
-
-elders/KB-0013/events/{自動編號}
-  type: "dose.taken" | "dose.missed" | "caregiver.notify" | "reminder.fire" | "reminder.snooze"
-        | "reminder.repeat" | "med.add" | "med.remove" | "schedule.update" | "setup.done" | "day.rollover" ...
-  text: "早餐後 吃了"   slot: "早餐後"   at: (伺服器時間)   source: "kebbi"
-```
-- **照服員改藥**：後台把 `meds`／`schedule` 改掉，同時寫 `updatedBy:"caregiver"`、`configUpdatedAt: 現在毫秒`。凱比收到後套用，並跟長者說「站點照服員幫您更新了藥…」。
-- **漏吃通知**：後台和 LINE APP 監聽 `type == "caregiver.notify"` 的事件。
-- 長者在凱比上新增或刪除藥的事件會帶 `needCaregiverConfirm: true`，後台要讓照服員確認（對應後台的「待確認的藥」）。
+在凱比上要知道的事：
+- App 要一直開在畫面上（取代凱比臉）。在前景時會擋住電源鍵，凱比不會睡著。
+- **重開機、按 Home 或 App 當掉後，凱比臉會蓋在最上面，App 不會自己回來**。要點通知，或用 RoFlow 打開 App。
+- 這台凱比的系統關掉了通知彈出：App 不在前景時，通知只會進通知欄，提醒實際上只剩語音（要不要打開還沒決定）。
 
 ---
 
-## 三、怎麼測試提醒
+## 二、後端
 
-- **掃 QR Code**：用瀏覽器打開 `tools/test-qr-cards.html` 印出來，41 種藥各一張（內容是 `KEBBI:M13` 這種格式）。
-- **不用等到吃藥時間**：右上角「設定」→ 最下面「照服員設定」→「測試：快轉到下一次提醒前 10 秒」。10 秒後會跳出提醒；測完按「回到真實時間」。
-- 提醒規則（`engine/ReminderEngine.kt` 最上面的 `Rules` 可以改）：
-  | 時間 | 凱比會 |
-  |---|---|
-  | T（吃藥時間） | 跳出提醒、說話 |
-  | 按「等一下」 | 10 分鐘後再提醒 |
-  | T + 15 分 | 還沒吃 → 再提醒一次 |
-  | T + 30 分 | 判定漏吃 → 通知照服員 |
-  | 首頁 20 秒沒動 | 進待機畫面 |
+- 後端網址在 `app/build.gradle.kts` 的 `API_BASE_URL`。**空的就用假後端**（`sync/FakeBackend.kt`），資料存在 App 自己的資料夾裡。
+- 後端要實作的 API 在 `:api` 模組（`api/README.md`），完整說明在 `docs/後端接口文件.md`。
+- 原型時期用的 Firebase 已經拿掉，`google-services.json` 不需要了。
+
+debug 版的「照服員設定 → 假後端」可以模擬後台的操作和異常：
+
+| 按鈕 | 做什麼 |
+|---|---|
+| 後台加藥／後台停藥 | 模擬照服員在後台改藥，凱比會說「站點照服員幫您更新了藥」 |
+| 2 分鐘後的測試提醒 | 加一個 2 分鐘後要吃的藥 |
+| 作息延後／提早 30 分 | 模擬後台改作息 |
+| 模擬斷網、下一次回 401、下一次回 500 | 測離線補送和錯誤處理 |
+| 停用／恢復凱比、解除綁定 | 測停用畫面和重新配對 |
+
+---
+
+## 三、怎麼測試
+
+- **單元測試**：`./gradlew :api:test :app:testDebugUnitTest`。
+- **在凱比上**：裝 debug 版，用下面的快轉時間和「假後端」測各種情況。
+- **不想等時間**：照服員設定 →「快轉到下一次轉換前 10 秒」。只改 App 自己的時間，測完按「回到真實時間」。只有 debug 版有。
+- **掃藥袋**：
+  - 產生測試用的藥袋圖片（只有假資料）：`./gradlew :app:testDebugUnitTest --tests "*TestBagImageGenerator"`，圖片在 `app/build/test-bags/`。
+  - 推到 `/sdcard/Android/data/tw.kebbi.medreminder/files/test/`，在掃描畫面按「測試圖片」（debug 版才有）。
+  - `tools/test-qr-cards.html` 是原型時期的卡片，QR 內容是 `KEBBI:M13`，現在的掃描**不認得**這個格式，只認醫院藥袋的格式。
+
+提醒規則（T ＝ 吃藥時間，常數在 `api/.../Rules.kt`，凱比和後端共用）：
+
+| 時間 | 凱比會 |
+|---|---|
+| T 前 30 分鐘起 | 可以先按「吃了」，算準時 |
+| T | 顯示這包藥並說話。App 不在前景時發通知，凱比照樣說話 |
+| 按「等一下」 | 10 分鐘後再提醒，但不會晚過 T＋30；剩不到 2 分鐘時不顯示「等一下」 |
+| T＋15 | 還沒吃，再提醒一次（畫面＋語音） |
+| T＋30 | 記成**逾時未服**，說「現在吃也可以」。後端在 T＋32 發 LINE 給照服員 |
+| 晚吃期限前 | 按「吃了」記成**晚吃** |
+| 過了晚吃期限 | 記成**漏服**，不能再補吃（怕跟下一次太近） |
+| 首頁 20 秒沒動 | 進待機畫面 |
+
+- **晚吃期限**：到「下一次吃同一種藥」間隔的一半，至少 T＋30。一天一次的藥是 12 小時後，可以跨過半夜；每週一次的藥到當天 24:00。由後端算好放在排程裡。
 
 ---
 
 ## 四、程式在哪裡
 
-| 檔案 | 內容 |
+| 位置 | 內容 |
 |---|---|
-| `data/MedDb.kt` | 41 種藥（與 Sheets 資料庫一致）、QR Code 解析 |
-| `data/Models.kt` | 時段、作息（時段時間怎麼算）、服藥狀態 |
-| `engine/ReminderEngine.kt` | 提醒規則（純邏輯，已用電腦測過） |
-| `engine/AlarmScheduler.kt`、`AlarmReceiver.kt`、`BootReceiver.kt` | 準時叫醒 App、開機後重排 |
-| `sync/CloudSync.kt` | Firebase 同步 |
-| `robot/RobotVoice.kt` | 說話；用 Android 內建語音（手機有聲音；凱比上沒反應，凱比說話改由 RoFlow 負責） |
-| `ui/Screens.kt` | 所有畫面（對應 Figma 代號 A1、B1…K0、C1…H9） |
-| `ui/Components.kt`、`ui/Art.kt` | 說話列、大按鈕、花、藥丸、啟動動畫 |
+| `api/` | 純 Kotlin 模組：凱比會呼叫的 13 支 API（`KebbiApi`）、資料類別、錯誤碼、規則常數（`Rules`）、給後端參考的計算邏輯（`reference/`）、範例 JSON |
+| `app/.../data/` | `Repo`（唯一的資料來源）、Room 資料庫（occurrence、outbox）、`DeviceStore`、`Clock` |
+| `app/.../engine/` | `ReminderEngine`（提醒的狀態機，純邏輯）、鬧鐘、開機重排、通知和通知上的按鈕、`Speech`（凱比要說的話） |
+| `app/.../sync/` | `SyncManager`（只有這裡呼叫後端）、`SyncWorker`（背景心跳、補送）、`FakeBackend`、`FakeCatalog`（假的藥品目錄） |
+| `app/.../robot/` | `RobotVoice`：凱比上用 Nuwa SDK 說話，模擬器用 Android 語音 |
+| `app/.../scan/` | 掃藥袋：相機、QR（醫院藥袋格式 A、B）、OCR、比對藥品目錄 |
+| `app/.../ui/` | Compose 畫面（`Screens.kt`）、`AppViewModel`、加藥精靈（`AddWizard.kt`） |
 
-畫面尺寸直接用 Figma 的數字（1280×800），`ui/KebbiRoot.kt` 會等比例縮放到凱比螢幕。
+- 畫面以 Figma 的 1280×800 為基準，`ui/KebbiRoot.kt` 等比例縮放到螢幕。凱比 AIR-H300 是 1024×600（大約縮成 0.75 倍）。
+- 畫面由狀態決定（例如有藥在提醒中，就顯示提醒畫面），不要改成用一次性事件跳頁。
 
 ---
 
-## 五、還沒做的（下一步）
+## 五、還沒做的
 
-1. **凱比本身的說話和動作**：由 RoFlow 負責，App 透過 MQTT 傳訊息給 RoFlow（見 docs/工程師交接.md 第 4 節）。
-2. **醫院藥袋的 QR Code 格式**：各醫院不同，要拿合作醫院的藥袋來擴充 `MedDb.parseQr()`。
-3. **後台網頁、LINE 拉娃 APP**：讀上面的 Firestore 資料。
-4. **安全規則**：目前是原型規則（登入就能讀寫），正式上線前要依照服員帳號、站點限制。
-5. 「拍照存起來」目前只提示照服員補登，還沒有真的拍照上傳。
+1. **串接第三方後端**：後端完成後在 `API_BASE_URL` 填網址，照 `docs/後端接口文件.md` 第 9 節驗收。
+2. **出貨準備**：正式簽章、`versionCode` 每版遞增、決定要不要混淆；和 Nuwa 確認用裝置管理安裝、更新；寫安裝與開機 SOP。
+3. **要決定的事**：要不要打開凱比的通知彈出、後端文件第 10 節的待確認事項。
+4. **還沒在凱比上測的**：真的醫院藥袋（Big5 編碼的 QR）、用 RoFlow 打開 App、沒有 QR 的藥袋倒數自動拍。

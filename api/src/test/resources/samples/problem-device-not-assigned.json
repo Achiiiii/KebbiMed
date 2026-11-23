@@ -1,0 +1,1 @@
+{ "type": "about:blank", "title": "Device not assigned", "status": 409, "code": "DEVICE_NOT_ASSIGNED", "detail": "這台凱比還沒有綁定長者。", "traceId": "tr_0002" }

@@ -5,6 +5,9 @@
 .DS_Store
 /build/
 /app/build/
+/api/build/
+# Kotlin 2.0 編譯器的暫存
+.kotlin/
 /captures/
 .externalNativeBuild/
 .cxx/
