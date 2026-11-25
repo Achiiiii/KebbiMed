@@ -14,6 +14,7 @@ import com.nuwarobotics.service.IClientId
 import com.nuwarobotics.service.agent.NuwaRobotAPI
 import com.nuwarobotics.service.agent.RobotEventCallback
 import com.nuwarobotics.service.agent.VoiceEventCallback
+import tw.kebbi.medreminder.engine.Speech
 import java.util.Locale
 
 /** 凱比說話、做動作的介面。 */
@@ -42,15 +43,8 @@ object Robot {
 
     /** 一整頁要說的話：上方文字＋可以按的按鈕。 */
     fun sayScreen(header: String, options: List<String>) {
-        val opts = options.distinct()
-        val tail = when {
-            opts.isEmpty() -> ""
-            opts.size == 1 -> "請按「${opts[0]}」。"
-            opts.size <= 4 -> "可以按：" + opts.joinToString("、") + "。"
-            else -> "請選一個。"
-        }
         val h = header.trim().let { if (it.isEmpty() || it.last() in "。？！?!") it else "$it。" }
-        say(h + tail)
+        say(h + Speech.options(options))
     }
 
     /** 選語音：凱比上有原廠服務就用 Nuwa SDK，沒有（模擬器）就用 Android 語音。 */

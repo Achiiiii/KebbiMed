@@ -16,8 +16,8 @@ android {
         targetSdk = 35
         versionCode = 2
         versionName = "0.2.0"
-        // 後端網址：空的就用假後端。第三方後端完成後在這裡填，例如 "https://example.com/api/v1/"
-        buildConfigField("String", "API_BASE_URL", "\"\"")
+        // 後端網址（測試環境）。改成空字串 "\"\"" 就換回 App 內建的假後端。
+        buildConfigField("String", "API_BASE_URL", "\"https://nt-test.foodplus.com.tw/api/v1/kebbi-med/\"")
         // 凱比是 arm64-v8a，模擬器是 x86_64；其他架構不打包，APK 小很多（ML Kit 中文 OCR 模型很大）
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }

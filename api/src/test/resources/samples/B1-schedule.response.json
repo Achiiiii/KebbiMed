@@ -4,6 +4,7 @@
   "changeSummary": "站點照服員幫您更新了藥。新增：利尿劑。",
   "changeSource": "caregiver",
   "routine": { "breakfast": "08:00", "lunch": "12:30", "dinner": "18:30", "sleep": "22:00" },
+  "reminderSettings": { "snoozeMinutes": 10, "maxSnoozes": 2, "overdueAfterMinutes": 30 },
   "medications": [
     { "medicationId": "med_0001", "catalogId": "M13", "displayName": "利尿劑", "genericName": "Furosemide",
       "brandName": "Lasix 來適泄", "dose": { "amount": 1, "unit": "顆", "text": "1 顆" },

@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tw.kebbi.medreminder.api.ApiConventions
 import tw.kebbi.medreminder.api.Slot
+import tw.kebbi.medreminder.api.dto.ReminderSettingsDto
 import tw.kebbi.medreminder.api.reference.OccurrenceExpander
 import tw.kebbi.medreminder.api.reference.OrderInput
 import tw.kebbi.medreminder.api.reference.RoutineMinutes
@@ -31,10 +32,10 @@ class ReminderEngineTest {
         ApiConventions.parseTime("${day.plusDays(plusDays)}T$hm:00+08:00")
 
     /** 一個情境：展開藥單 → 依時間跑引擎 → 記下事件。 */
-    private inner class Scenario(vararg orders: OrderInput, days: Long = 1) {
+    private inner class Scenario(vararg orders: OrderInput, days: Long = 1, settings: ReminderSettingsDto = ReminderSettingsDto.DEFAULT) {
         var occs: List<Occurrence> = OccurrenceExpander.expand("e1", orders.toList(), routine, day, day.plusDays(days)).map { o ->
             Occurrence(o.occurrenceId, o.date, o.slot, o.slotLabel, ApiConventions.parseTime(o.scheduledAt), ApiConventions.parseTime(o.lateDeadline),
-                o.items.map { OccItem(it.medicationId, names[it.medicationId] ?: "藥", it.doseText) })
+                o.items.map { OccItem(it.medicationId, names[it.medicationId] ?: "藥", it.doseText) }, settings = settings)
         }
         val events = mutableListOf<Pair<Long, EngineEvent>>()
 
@@ -279,5 +280,62 @@ class ReminderEngineTest {
         val ev = s.at(t("13:20")) // 早上這包晚吃期限 13:15
         assertTrue(ev.any { it is EngineEvent.Overdue } && ev.any { it is EngineEvent.Missed })
         assertEquals(OccStatus.MISSED, s.get(Slot.AFTER_BREAKFAST).status)
+    }
+
+    // ---------- 後台設定的提醒參數（reminderSettings） ----------
+
+    /** 照服員在後台改成：等一下 15 分鐘、最多 3 次、2 小時後才算逾時。 */
+    private val caregiverSettings = ReminderSettingsDto(snoozeMinutes = 15, maxSnoozes = 3, overdueAfterMinutes = 120)
+
+    @Test
+    fun settings01_snoozeMinutesAndMaxSnoozes() {
+        val s = Scenario(bp, settings = caregiverSettings)
+        assertTrue(s.at(t("08:00")).single() is EngineEvent.Fire)
+        assertEquals(15, ReminderEngine.snoozeMinutes(s.get(Slot.AFTER_BREAKFAST), t("08:00")))
+        assertEquals(t("08:15"), s.snooze(Slot.AFTER_BREAKFAST, t("08:00")))
+        assertTrue(s.at(t("08:15")).single() is EngineEvent.RemindAgain)
+        assertEquals(t("08:30"), s.snooze(Slot.AFTER_BREAKFAST, t("08:15")))
+        assertTrue(s.at(t("08:30")).single() is EngineEvent.RemindAgain)
+        assertEquals(t("08:45"), s.snooze(Slot.AFTER_BREAKFAST, t("08:30")))
+        assertTrue(s.at(t("08:45")).single() is EngineEvent.RemindAgain)
+        // 按滿 3 次：不再顯示「等一下」
+        assertEquals(3, s.get(Slot.AFTER_BREAKFAST).snoozeCount)
+        assertNull(s.snooze(Slot.AFTER_BREAKFAST, t("08:45")))
+        // 2 小時後才逾時；在那之前吃都算準時
+        assertTrue(s.at(t("09:59")).isEmpty())
+        assertEquals(OccStatus.REMINDING, s.get(Slot.AFTER_BREAKFAST).status)
+        assertTrue(s.at(t("10:00")).single() is EngineEvent.Overdue)
+    }
+
+    @Test
+    fun settings02_takeBeforeLongOverdueIsOnTime() {
+        val s = Scenario(bp, settings = caregiverSettings)
+        s.at(t("08:00"))
+        assertEquals(TakeOutcome.TAKEN, s.take(Slot.AFTER_BREAKFAST, t("09:30")))
+        assertFalse(s.get(Slot.AFTER_BREAKFAST).late)
+    }
+
+    @Test
+    fun settings03_maxSnoozesZeroHidesSnooze() {
+        val s = Scenario(bp, settings = ReminderSettingsDto(maxSnoozes = 0))
+        s.at(t("08:00"))
+        assertFalse(ReminderEngine.canSnooze(s.get(Slot.AFTER_BREAKFAST), t("08:00")))
+    }
+
+    @Test
+    fun settings04_lateDeadlineBeforeOverdueWins() {
+        // 後端給的晚吃期限（09:00）比逾時時間（10:00）早：以晚吃期限為準，不會一直停在提醒中
+        val o = Occurrence("o1", day.toString(), Slot.AFTER_BREAKFAST, "早餐後", t("08:00"), t("09:00"), emptyList(), settings = caregiverSettings)
+        assertEquals(t("09:00"), ReminderEngine.overdueAt(o))
+        val (afterFire, _) = ReminderEngine.tick(listOf(o), t("08:00"))
+        val (afterDeadline, ev) = ReminderEngine.tick(afterFire, t("09:00"))
+        assertTrue(ev.any { it is EngineEvent.Overdue } && ev.any { it is EngineEvent.Missed })
+        assertEquals(OccStatus.MISSED, afterDeadline.single().status)
+    }
+
+    @Test
+    fun settings05_backendValuesAreClamped() {
+        val n = ReminderSettingsDto(snoozeMinutes = 0, maxSnoozes = -1, overdueAfterMinutes = 99999).normalized()
+        assertEquals(ReminderSettingsDto(snoozeMinutes = 1, maxSnoozes = 0, overdueAfterMinutes = 24 * 60), n)
     }
 }

@@ -2,6 +2,7 @@ package tw.kebbi.medreminder.api.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import tw.kebbi.medreminder.api.Rules
 import tw.kebbi.medreminder.api.Slot
 import tw.kebbi.medreminder.api.Weekday
 
@@ -15,6 +16,31 @@ data class RoutineDto(
     val dinner: String,
     val sleep: String,
 )
+
+/**
+ * 提醒的參數：照服員在後台設定，發布新的排程版本後生效。
+ * 凱比收到新版本時，正在提醒中、還沒吃的那包也改用新的參數。
+ */
+@Serializable
+data class ReminderSettingsDto(
+    /** 按「等一下」後幾分鐘再提醒（不會晚過逾時時間）。 */
+    val snoozeMinutes: Int = Rules.SNOOZE_MIN,
+    /** 同一包最多可以按幾次「等一下」；0 ＝ 不顯示「等一下」。 */
+    val maxSnoozes: Int = Rules.MAX_SNOOZES,
+    /** T 之後幾分鐘還沒吃就記成逾時未服。晚吃期限（`lateDeadline`）至少要到這裡。 */
+    val overdueAfterMinutes: Int = Rules.OVERDUE_AFTER_MIN,
+) {
+    /** 後端給了不合理的值時，限制在可以用的範圍內（凱比不會因此壞掉）。 */
+    fun normalized() = ReminderSettingsDto(
+        snoozeMinutes = snoozeMinutes.coerceIn(1, 120),
+        maxSnoozes = maxSnoozes.coerceIn(0, 10),
+        overdueAfterMinutes = overdueAfterMinutes.coerceIn(1, 24 * 60),
+    )
+
+    companion object {
+        val DEFAULT = ReminderSettingsDto()
+    }
+}
 
 /** 劑量。`text` 是給長者看的寫法，例如「1 顆」「半顆」。 */
 @Serializable
@@ -97,6 +123,8 @@ data class ScheduleDto(
     val changeSummary: String? = null,
     val changeSource: ChangeSource? = null,
     val routine: RoutineDto,
+    /** 提醒的參數（照服員在後台設定，發布後生效）。沒帶就用 [Rules] 的預設值。 */
+    val reminderSettings: ReminderSettingsDto? = null,
     val medications: List<MedicationDto>,
     val occurrences: List<OccurrenceDto>,
     val serverTime: String,

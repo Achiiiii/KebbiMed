@@ -2,6 +2,28 @@
 
 每次修改 `:api` 模組的 API（欄位、路徑、行為），都在這裡記一筆，並通知第三方後端。
 
+## 2026-11-25：提醒參數改由後台設定
+
+- **B1 `ScheduleDto`**：新增 `reminderSettings`（`ReminderSettingsDto`，可以沒有）：
+  - `snoozeMinutes`：按「等一下」後幾分鐘再提醒（預設 10）。
+  - `maxSnoozes`：同一包最多可以按幾次「等一下」，0 ＝ 不能按（預設 2）。之前凱比沒有次數限制。
+  - `overdueAfterMinutes`：T 之後幾分鐘還沒吃就算逾時（預設 30）。
+  - 照服員在後台改、發佈新版本後生效；凱比收到新版本時，正在提醒中的那包也改用新的值。沒帶就用 `Rules.kt` 的預設值。
+- **後端要配合**：
+  - 晚吃期限要 ≥ T＋`overdueAfterMinutes`。
+  - 正式狀態（準時／晚吃）、逾時 LINE 的時間也要用同一個 `overdueAfterMinutes`。
+  - 參考實作 `OccurrenceExpander.expand`、`DoseStatusRules.status`、`DoseStatusRules.overdueAlertDue` 多了 `overdueAfterMin` 參數（預設 30）。
+- **範例**：`B1-schedule.response.json` 加上 `reminderSettings`。
+
+## 2026-11-25：照片被拒收時不重試
+
+- **R1 上傳照片**：後端回 4xx（例如 422 `INVALID_REQUEST`「照片的格式不對」）時，凱比**不再重試**，刪掉凱比上的照片，後面的照片繼續傳。
+  - 之前會一直重試，而且卡住後面所有照片。
+  - 不算拒收、之後會再傳的：401、403、408、409、429、5xx。413 照舊（照片留在凱比上，回報 `upload.too_large`）。
+  - 判斷規則：`ErrorCodes.isUploadRejected`。
+- **C3 操作紀錄**：新增 `type` = `upload.rejected`，`detail` 帶 `requestId`（對應 R2 的申請）、`status`（HTTP 狀態碼）、`code`（錯誤碼，有才帶）。後台可以用它說明「這筆申請為什麼沒有照片」。
+  - 如果後端只接受固定的幾種 `type`，請加上這一種。
+
 ## 2026-11-23：加藥時一律問用法
 
 - **R2 `PrescriptionDto`**（`add_medication` 的 `prescription`）：意思改成「長者在凱比上確認過的用法」，凱比一律會帶。

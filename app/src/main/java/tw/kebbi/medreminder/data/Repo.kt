@@ -18,6 +18,7 @@ import tw.kebbi.medreminder.api.dto.ChangeSource
 import tw.kebbi.medreminder.api.dto.DoseEventDto
 import tw.kebbi.medreminder.api.dto.DoseEventType
 import tw.kebbi.medreminder.api.dto.EventSource
+import tw.kebbi.medreminder.api.dto.ReminderSettingsDto
 import tw.kebbi.medreminder.api.dto.ScheduleDto
 import tw.kebbi.medreminder.api.reference.RoutineMinutes
 import tw.kebbi.medreminder.data.db.AppDatabase
@@ -65,9 +66,10 @@ object Repo {
         app = context.applicationContext
         db = AppDatabase.get(app)
         store = DeviceStore(app)
+        val device = store.load()
         _state.value = AppState(
-            device = store.load(),
-            occurrences = db.occurrences().all().map { it.toModel() },
+            device = device,
+            occurrences = db.occurrences().all().map { it.toModel(device.reminderSettings ?: ReminderSettingsDto.DEFAULT) },
             pendingOutbox = db.outbox().count(),
         )
         initialized = true
@@ -194,6 +196,8 @@ object Repo {
      */
     @Synchronized
     fun applySchedule(s: ScheduleDto, restored: List<AdherenceItemDto> = emptyList(), now: Long = Clock.nowMs()): MergeResult {
+        // 後台的提醒參數：新版本一到就生效，正在提醒中的那包也用新的
+        val settings = s.reminderSettings?.normalized() ?: ReminderSettingsDto.DEFAULT
         val medsById = s.medications.associateBy { it.medicationId }
         // 本機是空的（重灌、恢復啟用、重新綁定）：用 C2 的結果還原已經吃過的，免得又提醒一次
         val takenById = restored.filter { it.status == "taken" || it.status == "taken_late" }.associateBy { it.occurrenceId }
@@ -233,7 +237,8 @@ object Repo {
             }
         }
         if (delete.isNotEmpty()) db.occurrences().delete(delete)
-        saveOccurrences(keep)
+        val kept = keep.map { it.copy(settings = settings) }
+        saveOccurrences(kept)
         delete.forEach { Notifier.cancel(app, it) }
 
         val versionChanged = value.device.scheduleVersion != s.version
@@ -247,9 +252,10 @@ object Repo {
             scheduleFetchedDate = Clock.todayKey(now),
             pendingNotice = notice,
             stopNotice = stop,
+            reminderSettings = settings,
         ).withRoutine(RoutineMinutes.from(s.routine))
         store.save(d)
-        _state.value = value.copy(device = d, occurrences = keep.sortedBy { it.scheduledAt })
+        _state.value = value.copy(device = d, occurrences = kept.sortedBy { it.scheduledAt })
         AlarmScheduler.schedule(app, ReminderEngine.nextWakeMs(value.occurrences, now))
         return MergeResult(removedInProgress, versionChanged)
     }
@@ -323,13 +329,15 @@ object Repo {
         id = id, date = date, slot = slot.name, slotLabel = slotLabel, scheduledAt = scheduledAt, lateDeadline = lateDeadline,
         itemsJson = ApiJson.encodeToString(itemsSer, items), status = status.name, remindedAt = remindedAt,
         secondReminder = secondReminder, snoozeUntil = snoozeUntil, takenAt = takenAt, late = late, overdueSeen = overdueSeen,
+        snoozeCount = snoozeCount,
     )
 
-    private fun OccurrenceEntity.toModel() = Occurrence(
+    private fun OccurrenceEntity.toModel(settings: ReminderSettingsDto) = Occurrence(
         id = id, date = date, slot = runCatching { Slot.valueOf(slot) }.getOrDefault(Slot.CUSTOM), slotLabel = slotLabel,
         scheduledAt = scheduledAt, lateDeadline = lateDeadline,
         items = runCatching { ApiJson.decodeFromString(itemsSer, itemsJson) }.getOrDefault(emptyList()),
         status = runCatching { OccStatus.valueOf(status) }.getOrDefault(OccStatus.PENDING), remindedAt = remindedAt,
         secondReminder = secondReminder, snoozeUntil = snoozeUntil, takenAt = takenAt, late = late, overdueSeen = overdueSeen,
+        snoozeCount = snoozeCount, settings = settings,
     )
 }

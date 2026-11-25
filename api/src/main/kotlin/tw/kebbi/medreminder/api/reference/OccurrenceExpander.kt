@@ -61,11 +61,13 @@ object OccurrenceExpander {
         from: LocalDate,
         toInclusive: LocalDate,
         zone: ZoneId = ApiConventions.ZONE,
+        /** 後台設定的 `reminderSettings.overdueAfterMinutes`：晚吃期限至少到 T＋這麼多分鐘。 */
+        overdueAfterMin: Int = Rules.OVERDUE_AFTER_MIN,
     ): List<OccurrenceDto> {
         val out = mutableListOf<OccurrenceDto>()
         var date = from
         while (!date.isAfter(toInclusive)) {
-            out += expandDay(elderId, orders, routine, date, zone)
+            out += expandDay(elderId, orders, routine, date, zone, overdueAfterMin)
             date = date.plusDays(1)
         }
         return out.sortedBy { it.scheduledAt.let(ApiConventions::parseTime) }
@@ -77,6 +79,7 @@ object OccurrenceExpander {
         routine: RoutineMinutes,
         date: LocalDate,
         zone: ZoneId,
+        overdueAfterMin: Int,
     ): List<OccurrenceDto> {
         // 時刻（分鐘）→ 這個時刻的 (時段, 處方)
         val buckets = sortedMapOf<Int, MutableList<Pair<Slot, OrderInput>>>()
@@ -90,7 +93,7 @@ object OccurrenceExpander {
             val ordersHere = entries.map { it.second }.distinctBy { it.medicationId }
             val scheduledAt = dayStart + minute * 60_000L
             val cutoffMin = ordersHere.minOf { lateCutoffMinute(it, minute, routine) }
-            val lateDeadline = maxOf(dayStart + (cutoffMin * 60_000.0).toLong(), scheduledAt + Rules.OVERDUE_AFTER_MIN * 60_000L)
+            val lateDeadline = maxOf(dayStart + (cutoffMin * 60_000.0).toLong(), scheduledAt + overdueAfterMin * 60_000L)
             OccurrenceDto(
                 occurrenceId = occurrenceId(elderId, date, slot, minute),
                 date = ApiConventions.formatDate(date),

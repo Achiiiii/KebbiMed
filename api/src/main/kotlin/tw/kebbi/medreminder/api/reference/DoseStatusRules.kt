@@ -39,17 +39,19 @@ object DoseStatusRules {
         events: List<EventInput>,
         now: Long,
         deviceOnline: Boolean,
+        /** 後台設定的 `reminderSettings.overdueAfterMinutes`。 */
+        overdueAfterMin: Int = Rules.OVERDUE_AFTER_MIN,
     ): OfficialStatus {
         val taken = events.filter { it.type == DoseEventType.TAKEN || it.type == DoseEventType.LATE_TAKEN }
             .minByOrNull { it.occurredAt }
         if (taken != null) {
-            return if (taken.occurredAt <= scheduledAt + Rules.OVERDUE_AFTER_MIN * MIN) OfficialStatus.TAKEN
+            return if (taken.occurredAt <= scheduledAt + overdueAfterMin * MIN) OfficialStatus.TAKEN
             else OfficialStatus.TAKEN_LATE
         }
         if (events.any { it.type == DoseEventType.NOT_REMINDED_DEVICE_OFF }) return OfficialStatus.UNKNOWN_DEVICE_OFFLINE
         val byTime = when {
             now < scheduledAt -> OfficialStatus.UPCOMING
-            now < scheduledAt + Rules.OVERDUE_AFTER_MIN * MIN -> OfficialStatus.DUE
+            now < scheduledAt + overdueAfterMin * MIN -> OfficialStatus.DUE
             now < lateDeadline -> OfficialStatus.OVERDUE
             else -> OfficialStatus.MISSED
         }
@@ -58,9 +60,9 @@ object DoseStatusRules {
     }
 
     /** 該不該發「逾時未服」的 LINE：逾時後再等 [Rules.LINE_NOTIFY_DELAY_MIN] 分鐘，讓晚一點送到的「吃了」趕上。 */
-    fun overdueAlertDue(status: OfficialStatus, scheduledAt: Long, now: Long): Boolean =
+    fun overdueAlertDue(status: OfficialStatus, scheduledAt: Long, now: Long, overdueAfterMin: Int = Rules.OVERDUE_AFTER_MIN): Boolean =
         status == OfficialStatus.OVERDUE &&
-            now >= scheduledAt + (Rules.OVERDUE_AFTER_MIN + Rules.LINE_NOTIFY_DELAY_MIN) * MIN
+            now >= scheduledAt + (overdueAfterMin + Rules.LINE_NOTIFY_DELAY_MIN) * MIN
 
     /** 該不該發「漏服」的 LINE。 */
     fun missedAlertDue(status: OfficialStatus): Boolean = status == OfficialStatus.MISSED

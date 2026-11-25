@@ -5,6 +5,7 @@ import tw.kebbi.medreminder.api.Slot
 import tw.kebbi.medreminder.api.dto.CatalogDto
 import tw.kebbi.medreminder.api.dto.ElderDto
 import tw.kebbi.medreminder.api.dto.MedicationDto
+import tw.kebbi.medreminder.api.dto.ReminderSettingsDto
 import tw.kebbi.medreminder.api.dto.RewardsDto
 import tw.kebbi.medreminder.api.reference.RoutineMinutes
 
@@ -49,6 +50,10 @@ data class Occurrence(
     val late: Boolean = false,
     /** 長者看過「逾時未服」畫面了（按了「等一下再說」），就不再自動跳出來。 */
     val overdueSeen: Boolean = false,
+    /** 這包按過幾次「等一下」（最多 `settings.maxSnoozes` 次）。 */
+    val snoozeCount: Int = 0,
+    /** 後台的提醒參數。不存進資料庫：載入、套用排程時從 [DeviceData.reminderSettings] 帶進來（沒有就用預設值）。 */
+    val settings: ReminderSettingsDto = ReminderSettingsDto.DEFAULT,
 ) {
     /** 「利尿劑、降血壓藥」。同類的兩種藥會寫成「降血壓藥兩種」，不會只念一次（CR-08）。 */
     val medNames: String
@@ -79,6 +84,11 @@ data class DeviceData(
     val routineLunch: Int = RoutineMinutes.DEFAULT.lunch,
     val routineDinner: Int = RoutineMinutes.DEFAULT.dinner,
     val routineSleep: Int = RoutineMinutes.DEFAULT.sleep,
+    /**
+     * 後台的提醒參數（等一下幾分鐘、最多幾次、幾分鐘後逾時），跟著排程更新。
+     * null ＝ 還沒從排程拿到（例如 App 剛更新）：先用預設值，同步時不帶 ETag 重拉一次排程。
+     */
+    val reminderSettings: ReminderSettingsDto? = null,
     val medications: List<MedicationDto> = emptyList(),
     val scheduleVersion: Int? = null,
     val scheduleEtag: String? = null,

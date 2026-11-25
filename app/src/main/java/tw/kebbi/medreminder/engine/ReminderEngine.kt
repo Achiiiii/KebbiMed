@@ -21,7 +21,7 @@ sealed class EngineEvent {
     data class Fire(override val occ: Occurrence) : EngineEvent()
     /** 再提醒（T＋15，或「等一下」到期，D11）。 */
     data class RemindAgain(override val occ: Occurrence) : EngineEvent()
-    /** 逾時未服（T＋30）。 */
+    /** 逾時未服（T＋後台設定的分鐘數，預設 30）。 */
     data class Overdue(override val occ: Occurrence, val wasReminded: Boolean) : EngineEvent()
     /** 漏服（過了晚吃期限）。 */
     data class Missed(override val occ: Occurrence) : EngineEvent()
@@ -33,13 +33,15 @@ sealed class EngineEvent {
 enum class TakeOutcome { TAKEN, LATE_TAKEN, ALREADY_TAKEN, TOO_EARLY, TOO_LATE, NOT_FOUND }
 
 /**
- * 提醒引擎：純邏輯，不碰畫面和 Android。規則的常數在 `:api` 的 `Rules`。
+ * 提醒引擎：純邏輯，不碰畫面和 Android。固定的常數在 `:api` 的 `Rules`；
+ * 後台可以改的（等一下幾分鐘、最多幾次、幾分鐘後逾時）在每一包的 [Occurrence.settings]。
  * 鬧鐘響、畫面每秒更新、通知按鈕都呼叫同一套函式，結果一致。
  */
 object ReminderEngine {
     private const val MIN = 60_000L
 
-    private fun overdueAt(o: Occurrence) = o.scheduledAt + Rules.OVERDUE_AFTER_MIN * MIN
+    /** 逾時時間 ＝ T＋後台設定的分鐘數。後端應該保證晚吃期限不早於它；萬一更早，以晚吃期限為準，狀態才不會錯亂。 */
+    fun overdueAt(o: Occurrence): Long = minOf(o.scheduledAt + o.settings.overdueAfterMinutes * MIN, o.lateDeadline)
     private fun remindAgainAt(o: Occurrence) = o.scheduledAt + Rules.REMIND_AGAIN_MIN * MIN
 
     /** 一次狀態轉換；沒有要轉換時回傳 null。 */
@@ -99,14 +101,16 @@ object ReminderEngine {
         status = OccStatus.TAKEN, takenAt = now, late = takeOutcome(o, now) == TakeOutcome.LATE_TAKEN, snoozeUntil = null,
     )
 
-    /** 剩不到 2 分鐘就逾時時，不顯示「等一下」（D11）。 */
+    /** 按過的次數到了後台設定的上限、或剩不到 2 分鐘就逾時時，不顯示「等一下」（D11）。 */
     fun canSnooze(o: Occurrence, now: Long): Boolean =
-        o.status == OccStatus.REMINDING && overdueAt(o) - now >= Rules.SNOOZE_HIDE_BELOW_MIN * MIN
+        o.status == OccStatus.REMINDING && o.snoozeCount < o.settings.maxSnoozes &&
+            overdueAt(o) - now >= Rules.SNOOZE_HIDE_BELOW_MIN * MIN
 
-    /** 稍後到期 ＝ min(按下時間＋10 分, T＋30)（D11）。 */
-    fun snoozeUntil(o: Occurrence, now: Long): Long = minOf(now + Rules.SNOOZE_MIN * MIN, overdueAt(o))
+    /** 稍後到期 ＝ min(按下時間＋後台設定的分鐘數, 逾時時間)（D11）。 */
+    fun snoozeUntil(o: Occurrence, now: Long): Long = minOf(now + o.settings.snoozeMinutes * MIN, overdueAt(o))
 
-    fun snooze(o: Occurrence, now: Long): Occurrence = o.copy(status = OccStatus.SNOOZED, snoozeUntil = snoozeUntil(o, now))
+    fun snooze(o: Occurrence, now: Long): Occurrence =
+        o.copy(status = OccStatus.SNOOZED, snoozeUntil = snoozeUntil(o, now), snoozeCount = o.snoozeCount + 1)
 
     /** 「好，N 分鐘後再提醒您」的 N（實際分鐘數）。 */
     fun snoozeMinutes(o: Occurrence, now: Long): Int = ceil((snoozeUntil(o, now) - now) / MIN.toDouble()).toInt().coerceAtLeast(1)

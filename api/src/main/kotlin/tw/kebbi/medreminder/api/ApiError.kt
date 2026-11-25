@@ -29,9 +29,21 @@ data class ProblemDto(
  * | 409 | [DEVICE_NOT_ASSIGNED] | 回到配對畫面，清掉本機排程 |
  * | 413 | [PAYLOAD_TOO_LARGE] | 照片超過上限：不重試，照片留在本機，用 app-events 回報 `upload.too_large` |
  * | 422 | [INVALID_ROUTINE] 等 | 申請內容不合理：把 `detail` 告訴長者，不重試 |
+ * | 400、404、415、422 等 | — | R1 照片被拒收（例如格式不對）：不重試，刪掉照片，用 app-events 回報 `upload.rejected`（[isUploadRejected]） |
  * | 429、5xx | — | 指數退避重試，事件留在 outbox |
  */
 object ErrorCodes {
+    /**
+     * R1 上傳照片收到 [status] 時，是不是「照片本身被拒收」：再傳一次結果也一樣，所以不重試。
+     * - 是：凱比刪掉照片、從 outbox 拿掉，用 app-events 回報 `upload.rejected`，後面的照片繼續傳。
+     * - 413 不算（照片太大，另外回報 `upload.too_large`，照片留在本機）。
+     * - 401、403、408、409、429 和 5xx 不算：跟照片無關，留在 outbox 之後再傳。
+     */
+    fun isUploadRejected(status: Int): Boolean =
+        status in 400..499 && status != 413 && status !in UPLOAD_RETRY_4XX
+
+    private val UPLOAD_RETRY_4XX = setOf(401, 403, 408, 409, 429)
+
     const val TOKEN_EXPIRED = "TOKEN_EXPIRED"
     const val DEVICE_DISABLED = "DEVICE_DISABLED"
     const val UNKNOWN_OCCURRENCE = "UNKNOWN_OCCURRENCE"

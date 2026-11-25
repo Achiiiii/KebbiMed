@@ -122,7 +122,7 @@ fun Screens(vm: AppViewModel, st: AppState) {
                         KChipBig("已經過了 ${((now - o.scheduledAt) / 60_000).coerceAtLeast(1)} 分鐘", K.amberLight, K.amber)
                         VSpace(16)
                         DoseCard(o)
-                        Text("再過 ${((o.scheduledAt + Rules.OVERDUE_AFTER_MIN * 60_000L - now) / 60_000).coerceAtLeast(0)} 分鐘沒按，就會記成逾時未服。",
+                        Text("再過 ${((ReminderEngine.overdueAt(o) - now) / 60_000).coerceAtLeast(0)} 分鐘沒按，就會記成逾時未服。",
                             fontSize = 24.sp, color = K.ink2, modifier = Modifier.padding(top = 12.dp))
                     }
                 }

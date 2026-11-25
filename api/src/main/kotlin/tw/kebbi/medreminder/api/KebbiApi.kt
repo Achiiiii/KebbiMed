@@ -132,6 +132,7 @@ interface KebbiApi {
      * R1. 上傳藥袋照片原圖（D17），`multipart/form-data`。
      * - 欄位：`file`（JPEG 原圖，不縮圖）、`purpose=med_bag_photo`、`requestId`（對應 R2 的申請）、`capturedAt`、`sha256`。
      * - 凱比收到 201 就刪除本機照片；失敗就留在 outbox 重試。413：不重試（照片留在本機，回報 `upload.too_large`）。
+     *   照片本身被拒收（[ErrorCodes.isUploadRejected]，例如 422 格式不對）：不重試，刪掉照片，回報 `upload.rejected`。
      * - 同一個 `sha256` 重送時回 200 和原本的 `uploadId`。單檔上限請設 20 MB 以上。
      * - 照片上有長者姓名、病歷號等個資；怎麼存、存多久、誰能看，由後端決定。
      */

@@ -92,7 +92,7 @@ data class AdherenceDto(
 
 // ---------- C3 POST /devices/me/app-events（選用） ----------
 
-/** 非服藥類的操作紀錄，例如 `app.start`、`app.exit`、`face.covered`、`voice.error`、`notification.opened`、`upload.too_large`。 */
+/** 非服藥類的操作紀錄，例如 `app.start`、`app.exit`、`face.covered`、`voice.error`、`notification.opened`、`upload.too_large`、`upload.rejected`。 */
 @Serializable
 data class AppEventDto(
     val eventId: String,

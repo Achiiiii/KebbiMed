@@ -68,7 +68,7 @@ object Notifier {
             OccStatus.REMINDING ->
                 if (o.secondReminder) "${o.doseText()}還沒吃喔" to "現在吃也可以，吃完請按「吃了」。"
                 else "${o.doseText()}該吃了" to "吃完請按「吃了」。"
-            OccStatus.OVERDUE -> "${o.doseText()}還沒吃" to "已經過了 30 分鐘，現在吃也可以。吃完請按「吃了」（記成晚吃）。"
+            OccStatus.OVERDUE -> "${o.doseText()}還沒吃" to "已經過了 ${Speech.duration(o.settings.overdueAfterMinutes)}，現在吃也可以。吃完請按「吃了」（記成晚吃）。"
             else -> return
         }
         val b = base(context, o.id, title, body)

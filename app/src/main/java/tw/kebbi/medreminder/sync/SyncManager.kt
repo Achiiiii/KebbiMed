@@ -248,7 +248,8 @@ object SyncManager {
         hb?.let { checkSkew(it.serverTime) }
         val d = Repo.value.device
         val latest = hb?.latestScheduleVersion ?: me.latestScheduleVersion
-        if (latest != d.scheduleVersion || d.scheduleFetchedDate != Clock.todayKey() || Repo.value.occurrences.isEmpty()) {
+        // reminderSettings 是 null：App 剛更新、還沒拿過後台的提醒參數，版本沒變也要重拉一次
+        if (latest != d.scheduleVersion || d.scheduleFetchedDate != Clock.todayKey() || Repo.value.occurrences.isEmpty() || d.reminderSettings == null) {
             fetchSchedule()
         }
         if (d.catalog == null || d.catalogFetchedDate != Clock.todayKey()) fetchCatalog()
@@ -266,7 +267,7 @@ object SyncManager {
 
     private suspend fun fetchSchedule() {
         val d = Repo.value.device
-        val etag = if (Repo.value.occurrences.isEmpty()) null else d.scheduleEtag
+        val etag = if (Repo.value.occurrences.isEmpty() || d.reminderSettings == null) null else d.scheduleEtag
         when (val r = call { api.getSchedule(etag) }) {
             is Res.Ok -> {
                 val s = r.body
@@ -399,6 +400,16 @@ object SyncManager {
                 r is Res.Http && r.code == 413 -> {
                     Repo.outboxDelete(listOf(item.id))
                     Repo.logAppEvent("upload.too_large", mapOf("bytes" to file.length().toString()))
+                }
+                // 照片本身被拒收（例如格式不對）：再傳也一樣。不重試，免得卡住後面的照片；照片刪掉、回報原因
+                r is Res.Http && ErrorCodes.isUploadRejected(r.code) -> {
+                    Log.w(TAG, "照片被後端拒收（${r.code} ${r.problem?.code ?: "-"}），不再重試")
+                    file.delete()
+                    Repo.outboxDelete(listOf(item.id))
+                    Repo.logAppEvent(
+                        "upload.rejected",
+                        listOfNotNull("requestId" to p.requestId, "status" to r.code.toString(), r.problem?.code?.let { "code" to it }).toMap(),
+                    )
                 }
                 r is Res.Http -> { Repo.outboxBump(listOf(item.id)); return }
                 else -> return

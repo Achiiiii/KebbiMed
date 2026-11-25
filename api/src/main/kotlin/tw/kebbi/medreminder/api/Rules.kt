@@ -1,23 +1,30 @@
 package tw.kebbi.medreminder.api
 
 /**
- * 提醒規則的固定常數（D10：規則固定，不由後端設定）。
+ * 提醒規則的常數。
  *
  * 凱比和後端都要判定狀態（D5）：凱比判定給長者看，後端依事件重算當作正式紀錄。
  * 兩邊一定要用這同一份數字，結果才會一致。T ＝ occurrence 的 `scheduledAt`。
+ *
+ * [SNOOZE_MIN]、[MAX_SNOOZES]、[OVERDUE_AFTER_MIN] 是**預設值**：照服員可以在後台改，
+ * 由 B1 排程的 `reminderSettings`（[tw.kebbi.medreminder.api.dto.ReminderSettingsDto]）帶給凱比；沒帶就用這裡的值。
+ * 其他常數固定。
  */
 object Rules {
     /** T−30 分鐘起可以按「吃了」，算準時（D15）。 */
     const val EARLY_TAKE_MIN = 30
 
-    /** T＋15 再提醒一次（畫面＋語音，D16）。「等一下」期間不觸發（D11）。 */
+    /** T＋15 再提醒一次（畫面＋語音，D16）。「等一下」期間不觸發（D11）；逾時時間比這個早就不會觸發。 */
     const val REMIND_AGAIN_MIN = 15
 
-    /** T＋30 還沒吃 → 逾時未服（D23）。之後在晚吃期限前吃，記成晚吃。 */
+    /** 預設：T＋30 還沒吃 → 逾時未服（D23）。之後在晚吃期限前吃，記成晚吃。後台可改（`overdueAfterMinutes`）。 */
     const val OVERDUE_AFTER_MIN = 30
 
-    /** 按「等一下」後幾分鐘再提醒；實際到期 ＝ min(按下時間＋10 分, T＋30)（D11）。 */
+    /** 預設：按「等一下」後幾分鐘再提醒；實際到期 ＝ min(按下時間＋10 分, 逾時時間)（D11）。後台可改（`snoozeMinutes`）。 */
     const val SNOOZE_MIN = 10
+
+    /** 預設：同一包最多可以按幾次「等一下」。後台可改（`maxSnoozes`）。 */
+    const val MAX_SNOOZES = 2
 
     /** 離逾時不到這麼多分鐘時，不顯示「等一下」（D11）。 */
     const val SNOOZE_HIDE_BELOW_MIN = 2

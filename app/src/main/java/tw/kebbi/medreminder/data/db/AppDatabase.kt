@@ -1,6 +1,7 @@
 package tw.kebbi.medreminder.data.db
 
 import android.content.Context
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -10,6 +11,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /** 一包藥（occurrence）和它在凱比上的狀態。 */
 @Entity(tableName = "occurrence")
@@ -29,6 +32,8 @@ data class OccurrenceEntity(
     val takenAt: Long?,
     val late: Boolean,
     val overdueSeen: Boolean,
+    /** 按過幾次「等一下」。第 2 版資料庫新增。 */
+    @ColumnInfo(defaultValue = "0") val snoozeCount: Int = 0,
 )
 
 /**
@@ -95,7 +100,7 @@ interface OutboxDao {
     fun clear()
 }
 
-@Database(entities = [OccurrenceEntity::class, OutboxEntity::class], version = 1, exportSchema = false)
+@Database(entities = [OccurrenceEntity::class, OutboxEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun occurrences(): OccurrenceDao
     abstract fun outbox(): OutboxDao
@@ -103,10 +108,21 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile private var instance: AppDatabase? = null
 
+        /**
+         * 第 2 版：occurrence 加 `snoozeCount`（後台可以設定最多按幾次「等一下」）。
+         * 不能用 fallbackToDestructiveMigration：outbox 裡可能有還沒送出的服藥事件。
+         */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE occurrence ADD COLUMN snoozeCount INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         /** 資料量很小（8 天 × 最多 8 包），允許在主執行緒存取，讓鬧鐘、通知按鈕的處理簡單一點。 */
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "kebbi_med.db")
                 .allowMainThreadQueries()
+                .addMigrations(MIGRATION_1_2)
                 .build().also { instance = it }
         }
     }

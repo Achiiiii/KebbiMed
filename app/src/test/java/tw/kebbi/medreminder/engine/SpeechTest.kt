@@ -34,4 +34,26 @@ class SpeechTest {
             Speech.remind(o, others = 1, onScreen = false),
         )
     }
+
+    @Test fun `可以按的按鈕用逗號隔開，最後一個前面加或`() {
+        assertEquals("可以按，今天的藥，或，明天的藥。", Speech.options(listOf("今天的藥", "明天的藥")))
+        assertEquals("可以按，返回，清空藥單，或，離開 App。", Speech.options(listOf("返回", "清空藥單", "離開 App")))
+        assertEquals("可以按，今天的藥，或，明天的藥。", Speech.options(listOf("今天的藥", "明天的藥", "今天的藥")))
+    }
+
+    @Test fun `一個按鈕、太多按鈕、沒有按鈕`() {
+        assertEquals("請按「好」。", Speech.options(listOf("好")))
+        assertEquals("請選一個。", Speech.options(listOf("1", "2", "3", "4", "5")))
+        assertEquals("", Speech.options(emptyList()))
+    }
+
+    @Test fun `逾時的時間由後台設定，超過 1 小時改說幾小時`() {
+        assertEquals("30 分鐘", Speech.duration(30))
+        assertEquals("2 小時", Speech.duration(120))
+        assertEquals("1 小時 30 分鐘", Speech.duration(90))
+        val o = occ(OccItem("m1", "降血壓藥", "1 顆")).copy(
+            settings = tw.kebbi.medreminder.api.dto.ReminderSettingsDto(overdueAfterMinutes = 120),
+        )
+        assertEquals("早餐後的降血壓藥還沒吃，已經過了 2 小時。照服員也會收到通知。現在吃也可以。", Speech.overdue(o, online = true))
+    }
 }

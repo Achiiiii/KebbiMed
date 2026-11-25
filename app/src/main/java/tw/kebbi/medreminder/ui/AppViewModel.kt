@@ -1,6 +1,8 @@
 package tw.kebbi.medreminder.ui
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -285,7 +287,12 @@ class AppViewModel : ViewModel() {
             }
             if (src == null) { debugMessage = "沒有測試圖片"; return@launch }
             val dst = ScanModule.imageStore(context).newImageFile()
-            withContext(Dispatchers.IO) { src.copyTo(dst, overwrite = true) }
+            withContext(Dispatchers.IO) {
+                // 測試圖片常是 BMP、PNG：存成 JPEG，跟相機拍的一樣（後端會檢查格式，BMP 會被拒收）
+                val bmp = BitmapFactory.decodeFile(src.path)
+                if (bmp == null) src.copyTo(dst, overwrite = true)
+                else { dst.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 90, it) }; bmp.recycle() }
+            }
             onCaptured(context, PendingCapture(dst, CaptureSource.TEST_IMAGE, Clock.nowMs(), emptyList()))
         }
     }
