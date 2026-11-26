@@ -1,19 +1,27 @@
 package tw.kebbi.medreminder.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,9 +34,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import tw.kebbi.medreminder.data.AppForeground
@@ -239,6 +253,48 @@ fun GridButton(title: String, sub: String?, ghost: Boolean = false, enabled: Boo
         val fg = when { marked -> Color.White; ghost || !enabled -> K.ink2; else -> K.teal }
         Text(title, color = fg, fontSize = if (title.length > 14) 24.sp else 30.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1)
         if (sub != null) Text(sub, color = if (marked) Color.White else K.ink2, fontSize = 20.sp, textAlign = TextAlign.Center, maxLines = 1)
+    }
+}
+
+/** 「照服員設定」要按住多久才進得去。 */
+const val CAREGIVER_HOLD_MS = 3_000
+
+/**
+ * 「照服員設定 ›」的入口：按住 3 秒才會進去，免得長者誤觸「清空藥單」「離開 App」。
+ * 按住時文字下面的線會慢慢填滿；太早放開就提示要按住幾秒。
+ * 不登記成畫面上的選項，所以凱比不會念出來。
+ */
+@Composable
+fun CaregiverEntry(modifier: Modifier = Modifier, onOpen: () -> Unit) {
+    val progress = remember { Animatable(0f) }
+    var hint by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val open by rememberUpdatedState(onOpen)
+    LaunchedEffect(hint) { if (hint) { delay(2_500); hint = false } }
+    Column(
+        modifier.width(IntrinsicSize.Max).pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown()
+                hint = false
+                val fill = scope.launch { progress.snapTo(0f); progress.animateTo(1f, tween(CAREGIVER_HOLD_MS, easing = LinearEasing)) }
+                var released = false
+                withTimeoutOrNull(CAREGIVER_HOLD_MS.toLong()) {
+                    // 放開（up 不是 null）＝按太短；手指滑出去（null）就當作沒按
+                    if (waitForUpOrCancellation() != null) hint = true
+                    released = true
+                }
+                fill.cancel()
+                scope.launch { progress.snapTo(0f) }
+                if (!released) open()
+            }
+        },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("照服員設定 ›", fontSize = 24.sp, color = K.ink2)
+        Box(Modifier.fillMaxWidth().height(4.dp).background(if (progress.value > 0f) K.line else Color.Transparent)) {
+            Box(Modifier.fillMaxWidth(progress.value).fillMaxHeight().background(K.teal))
+        }
+        if (hint) Text("請按住 ${CAREGIVER_HOLD_MS / 1000} 秒", fontSize = 20.sp, color = K.ink2)
     }
 }
 

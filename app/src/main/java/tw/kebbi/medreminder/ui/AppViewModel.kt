@@ -458,6 +458,9 @@ class AppViewModel : ViewModel() {
 
     // ---------- 照服員頁 ----------
 
+    /** 「1.0.0（3）」：照服員回報問題時看得出裝的是哪一版。 */
+    val appVersion get() = "${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）"
+
     /** 離開 App（D3：只在照服員設定頁）。鬧鐘還在，時間到會發橫幅、說話。 */
     fun onExit() {
         Repo.logAppEvent("app.exit")

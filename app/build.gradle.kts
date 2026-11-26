@@ -1,9 +1,24 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+}
+
+// 後端網址：debug 版接測試環境，release 版接正式環境。
+// debug 版的網址改成空字串就換回 App 內建的假後端；release 版一定要接真的後端。
+val testApiUrl = "https://nt-test.foodplus.com.tw/api/v1/kebbi-med/"
+val prodApiUrl = "https://staging-healthplus.cip.gov.tw/api/v1/kebbi-med/"
+require(prodApiUrl.startsWith("https://")) { "release 版一定要接 https 的正式後端，不能用假後端" }
+
+// 正式簽章：金鑰和密碼放在專案根目錄的 keystore/（只在本機，不上傳 git，見 docs/工程師交接.md 第 12.5 節）。
+// 沒有這個資料夾也能打包 debug 版；release 版會變成沒簽章、裝不上去的 app-release-unsigned.apk。
+val releaseKeystore = Properties().apply {
+    val f = rootProject.file("keystore/keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -14,16 +29,30 @@ android {
         applicationId = "tw.kebbi.medreminder"
         minSdk = 29          // D30：目標裝置只有凱比 AIR-H300（Android 15）
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
-        // 後端網址（測試環境）。改成空字串 "\"\"" 就換回 App 內建的假後端。
-        buildConfigField("String", "API_BASE_URL", "\"https://nt-test.foodplus.com.tw/api/v1/kebbi-med/\"")
+        // 每次發版 versionCode 都要比上一版大，凱比才能覆蓋安裝（用 Nuwa 裝置管理更新也一樣）
+        versionCode = 3
+        versionName = "1.0.0"
         // 凱比是 arm64-v8a，模擬器是 x86_64；其他架構不打包，APK 小很多（ML Kit 中文 OCR 模型很大）
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
+    signingConfigs {
+        if (!releaseKeystore.isEmpty) create("release") {
+            storeFile = rootProject.file(releaseKeystore.getProperty("storeFile"))
+            storePassword = releaseKeystore.getProperty("storePassword")
+            keyAlias = releaseKeystore.getProperty("keyAlias")
+            keyPassword = releaseKeystore.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"$testApiUrl\"")
+        }
         release {
+            buildConfigField("String", "API_BASE_URL", "\"$prodApiUrl\"")
+            signingConfig = signingConfigs.findByName("release")
+            // 不混淆（2026-11-26 決定）：APK 大小主要是 ML Kit 的 OCR 模型，混淆省不了多少，還要整個重測
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -70,7 +99,7 @@ dependencies {
     // 背景同步（每 15 分鐘心跳、有網路時補送事件）
     implementation(libs.androidx.work.runtime.ktx)
 
-    // 連後端（第三方後端完成後才會用到；在那之前用假後端）
+    // 連後端
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)

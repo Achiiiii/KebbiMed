@@ -80,7 +80,7 @@ fun Screens(vm: AppViewModel, st: AppState) {
         Screen.Disabled -> KScreen("這台凱比已經停用了，請聯絡照服員。") {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 FloatingPills()
-                Text("照服員設定 ›", fontSize = 24.sp, color = K.ink2, modifier = Modifier.padding(top = 24.dp).plainClick { vm.go(Screen.Caregiver) })
+                CaregiverEntry(Modifier.padding(top = 24.dp)) { vm.go(Screen.Caregiver) }
             }
         }
 
@@ -234,7 +234,7 @@ fun Screens(vm: AppViewModel, st: AppState) {
                         KButtonBase(Modifier.width(480.dp).height(140.dp), "返回", onClick = { vm.go(Screen.Home) })
                     }
                 }
-                Text("照服員設定 ›", fontSize = 24.sp, color = K.ink2, modifier = Modifier.padding(top = 24.dp).plainClick { vm.go(Screen.Caregiver) })
+                CaregiverEntry(Modifier.padding(top = 24.dp)) { vm.go(Screen.Caregiver) }
             }
         }
 
@@ -420,9 +420,9 @@ private fun PairingScreen(vm: AppViewModel) {
                     Image(bmp.asImageBitmap(), contentDescription = "配對 QR Code", modifier = Modifier.size(320.dp))
                 }
             } else FloatingPills()
-            Row(Modifier.padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                if (vm.hasFakeBackend) SmallLink("模擬後台綁定（測試）") { vm.debug { SyncManager.fake!!.debugClaim() } }
-                SmallLink("照服員設定", primary = false) { vm.go(Screen.Caregiver) }
+            Row(Modifier.padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (vm.isDebug && vm.hasFakeBackend) SmallLink("模擬後台綁定（測試）") { vm.debug { SyncManager.fake!!.debugClaim() } }
+                CaregiverEntry { vm.go(Screen.Caregiver) }
             }
             if (vm.debugMessage.isNotEmpty()) Text(vm.debugMessage, fontSize = 22.sp, color = K.ink2, modifier = Modifier.padding(top = 8.dp))
         }
@@ -459,6 +459,7 @@ private fun CaregiverScreen(vm: AppViewModel, st: AppState) {
                 if (vm.isDebug && vm.hasFakeBackend) SmallLink("假後端") { vm.go(Screen.DebugBackend) }
             }
             val lines = listOfNotNull(
+                "App 版本：${vm.appVersion}",
                 "語音：${Robot.voice.status}",
                 "裝置編號：${d.deviceId ?: "還沒登記"}",
                 "排程：第 ${d.scheduleVersion ?: "-"} 版，${d.medications.size} 種藥；待送 ${st.pendingOutbox} 筆",

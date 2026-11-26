@@ -170,12 +170,20 @@ object SyncManager {
                 }
             }
         } catch (e: IOException) {
-            markOnline(false, e.message)
+            markOnline(false, networkErrorText(e))
             Res.Net(e)
         } catch (e: Exception) {
             Log.w(TAG, "API 呼叫失敗：${e.javaClass.simpleName}")
             Res.Http(-1, null)
         }
+    }
+
+    /** 照服員設定頁顯示的斷網原因。不顯示英文原文（裡面有後端網址）。 */
+    private fun networkErrorText(e: IOException): String = when (e) {
+        is java.net.UnknownHostException -> "找不到後台，請確認凱比有連上 Wi-Fi"
+        is java.net.SocketTimeoutException -> "後台太久沒有回應"
+        is javax.net.ssl.SSLException -> "安全連線失敗，請確認凱比的日期、時間正確"
+        else -> "連不到後台"
     }
 
     private fun markOnline(ok: Boolean, error: String?) {

@@ -13,6 +13,10 @@
 .cxx/
 # Firebase 設定檔含專案金鑰，不要上傳到公開的 GitHub
 app/google-services.json
+# 正式簽章的金鑰和密碼只放本機（遺失就不能再發更新，要另外備份）
+/keystore/
+*.jks
+*.keystore
 # Nuwa SDK 為專有授權，請自行從 https://dss.nuwarobotics.com/ 下載後放入 app/libs/
 app/libs/*.aar
 app/libs/*.jar
